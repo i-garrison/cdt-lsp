@@ -12,6 +12,8 @@
 
 package org.eclipse.cdt.lsp.internal.editor;
 
+import java.net.URI;
+
 import org.eclipse.cdt.codan.core.model.IProblemReporter;
 import org.eclipse.cdt.lsp.plugin.LspPlugin;
 import org.eclipse.cdt.lsp.server.ICLanguageServerProvider;
@@ -30,6 +32,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.ui.IEditorDescriptor;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorRegistry;
+import org.eclipse.ui.IURIEditorInput;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.ide.IEditorAssociationOverride;
 import org.eclipse.ui.part.FileEditorInput;
@@ -93,12 +96,23 @@ public class CEditorAssociationOverride implements IEditorAssociationOverride {
 		return editorDescriptor;
 	}
 
+	private URI editorInputToUri(IEditorInput editorInput) {
+		if (editorInput instanceof final IURIEditorInput uriEditorInput) {
+			return uriEditorInput.getURI();
+		} else if (editorInput instanceof final FileEditorInput fileEditorInput) {
+			return fileEditorInput.getFile().getLocationURI();
+		}
+		return null;
+	}
+
 	private boolean isEnabledFor(IEditorInput editorInput, IContentType contentType) {
 		if (cLanguageServerProvider == null)
 			return false;
 		IResource resource = editorInput.getAdapter(IResource.class);
 		var project = resource != null ? resource.getProject() : null;
-		boolean enabled = cLanguageServerProvider.isEnabledFor(project);
+
+		boolean enabled = cLanguageServerProvider.isEnabledFor(project)
+				|| LspUtils.isFileOpenedInLspEditorOrLspEditorIsActive(editorInputToUri(editorInput));
 
 		if (enabled && resource != null) {
 			deleteCodanMarkers(resource);
